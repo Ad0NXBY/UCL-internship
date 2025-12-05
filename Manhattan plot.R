@@ -31,7 +31,6 @@ gwas <- gwas[!is.na(CHR) & !is.na(BP) & !is.na(P) & P > 0]
 #install the qqman package and make the manhattan plot
 install.packages("qqman")
 library(qqman)
-
 manhattan(gwas,
           chr = "CHR",
           bp = "BP",
@@ -41,6 +40,7 @@ manhattan(gwas,
 manhattan(gwas, annotatePval = 0.01)
 
 
+library(tidyverse)
 don <- gwas %>% 
   
   # Compute chromosome size
