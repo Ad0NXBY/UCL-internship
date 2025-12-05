@@ -35,9 +35,13 @@ manhattan(gwas,
           chr = "CHR",
           bp = "BP",
           snp = "SNP",
-          p = "P")
+          p = "P",
+          logp = FALSE,
+          genomewideline = 7.3,
+          annotatePval = 7.3,
+          annotateTop = TRUE)
 
-manhattan(gwas, annotatePval = 0.01)
+
 
 
 library(tidyverse)
@@ -62,22 +66,33 @@ axisdf = don %>%
   group_by(CHR) %>%
   summarize(center=( max(BPcum) + min(BPcum) ) / 2 )
 
-ggplot(don, aes(x=BPcum, y=-log10(P))) +
-  
-  # Show all points
-  geom_point( aes(color=as.factor(CHR)), alpha=0.8, size=1.3) +
+don <- don %>%
+  mutate(
+    is_highlight = ifelse(P > 7.3, "yes", "no"),
+    is_annotate  = ifelse(P > 7.3, "yes", "no")
+  )
+
+library(ggplot2)
+library(ggrepel)
+
+ggplot(don, aes(x = BPcum, y = P)) +
+  geom_point(aes(color = as.factor(CHR)), alpha = 0.8, size = 1.3) +
   scale_color_manual(values = rep(c("grey", "skyblue"), 22 )) +
-  
-  # custom X axis:
-  scale_x_continuous( label = axisdf$CHR, breaks= axisdf$center ) +
-  scale_y_continuous(expand = c(0, 0) ) +     # remove space between plot area and x axis
-  
-  # Custom the theme:
+  scale_x_continuous(label = axisdf$CHR, breaks = axisdf$center) +
+  scale_y_continuous(expand = c(0, 0)) +
+  geom_hline(yintercept = 7.3, linetype = "dashed", colour = "red") +  # genome-wide line
+  geom_point(data=subset(don, is_highlight=="yes"), color = "orange", size = 2) +
+  geom_label_repel(data=subset(don, is_annotate=="yes"), aes(label=SNP), size =2) +
   theme_bw() +
-  theme( 
-    legend.position="none",
+  theme(
+    legend.position = "none",
     panel.border = element_blank(),
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank()
   )
+
+#Extracting significant SNPs into a CSV file
+sig_SNPs <- gwas %>% 
+  filter(P > 7.3) %>%
+  arrange(desc(P))
 
