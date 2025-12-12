@@ -4,3 +4,4 @@
 .Ruserdata
 .RDataTmp*
 *.gz
+*.RData
