@@ -5,5 +5,4 @@
 .RDataTmp*
 *.gz
 *.RData
-*.png
 *.RDataTmp
