@@ -510,3 +510,99 @@ ggsave(
   height = 12,
   dpi = 300
 )
+
+
+
+#Working on public dataset======================================================
+public_gwas <- fread("MRI_lvef_filtered/MRI_lvef_filtered.tsv")
+#check the output of the dataset to change the names and make sure they match with what we want
+names(public_gwas)
+head(public_gwas)
+
+#Change the names of the headers to match what we want
+setnames(public_gwas,
+         old = c("SNP", "CHR", "BP", "P_LINREG", "ALLELE1", "ALLELE0", "A1FREQ", "BETA", "SE", "N"),
+         new = c("SNP", "CHR", "BP", "P_raw", "effect_allele", "other_allele", "effect_allele_freq", "effect_size", "standard_error", "number_of_samples"))
+
+#Ensure that the columns are the right type
+public_gwas[, CHR := as.numeric(CHR)]
+public_gwas[, BP  := as.numeric(BP)]
+public_gwas[, SNP := as.character(SNP)]
+public_gwas[, P_raw := as.numeric(P_raw)]
+public_gwas[, effect_size := as.numeric(effect_size)]
+public_gwas[, standard_error := as.numeric(standard_error)]
+public_gwas[, effect_allele_freq := as.numeric(effect_allele_freq)]
+public_gwas[, number_of_samples := as.integer(number_of_samples)]
+
+#convert raw p-value to match with column "P"
+public_gwas[, P := -log10(P_raw)]
+
+#Remove missing/invalid rows
+public_gwas <- public_gwas[
+  !is.na(CHR) & !is.na(BP) & !is.na(SNP) &
+    !is.na(P_raw) & P_raw > 0
+]
+
+
+#LD clumping
+clump_dat_public <- public_gwas %>%
+  filter(P > gw_thresh_log10) %>%
+  transmute(
+    rsid = SNP,
+    pval = P_raw
+  )
+
+clumped_pub <- ieugwasr::ld_clump(
+  dat      = clump_dat_public,
+  clump_kb = 10000,
+  clump_r2 = 0.001,
+  clump_p  = 5e-8,
+  pop      = "EUR"
+)
+
+lead_SNPs_ld_pub <- public_gwas %>%
+  inner_join(clumped_pub, by = c("SNP" = "rsid"))
+
+# Save LD-clumped lead SNPs
+write.table(
+  lead_SNPs_ld_pub,
+  file = file.path(data_dir, "published_LVEF_lead_SNPs_LD_clumped.tsv"),
+  sep = "\t",
+  quote = FALSE,
+  row.names = FALSE
+)
+
+write.csv(
+  lead_SNPs_ld_pub,
+  file = file.path(data_dir, "published_LVEF_lead_SNPs_LD_clumped.csv"),
+  row.names = FALSE
+)
+
+#Establishing true novelty
+novelty_table <- lead_SNPs_ld_80k %>%
+  transmute(SNP, CHR, BP, P_80k = P) %>%
+  rowwise() %>%
+  mutate(
+    overlaps_40k = any(lead_SNPs_ld_40k$CHR == CHR & abs(lead_SNPs_ld_40k$BP - BP) <= window_bp),
+    overlaps_published = any(lead_SNPs_ld_pub$CHR == CHR & abs(lead_SNPs_ld_pub$BP - BP) <= window_bp),
+    novelty = case_when(
+      overlaps_40k | overlaps_published ~ "Not novel (overlaps known)",
+      TRUE ~ "Novel (no overlaps)"
+    )
+  ) %>%
+  ungroup()
+
+#Creating data file for the novel SNPs that has all the known information we have
+novel_loci_for_80k <- novelty_table %>%
+  filter(novelty == "Novel (no overlaps)")
+
+novel_loci_80k_full <- novel_loci_for_80k %>%
+  left_join(lead_SNPs_ld_80k, by = c("SNP", "CHR", "BP"))
+
+
+write.csv(
+  novel_loci_80k_full,
+  file = file.path(data_dir, "80k_novel_LVEF_loci.csv"),
+  row.names = FALSE
+)
+
