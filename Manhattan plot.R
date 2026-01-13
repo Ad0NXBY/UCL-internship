@@ -20,6 +20,8 @@ install.packages("ieugwasr")
 install.packages("usethis")
 install.packages("qqman")
 install.packages("coloc")
+install.packages("tidyverse")
+install.packages("ggrepel")
 
 library(data.table)
 library(qqman)
@@ -325,10 +327,11 @@ dev.off()
 #perform LD clumping
 
 #usethis::edit_r_environ() #use this to open to add the token
-#OPENGWAS_JWT=eyJhbGciOiJSUzI1NiIsImtpZCI6ImFwaS1qd3QiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhcGkub3Blbmd3YXMuaW8iLCJhdWQiOiJhcGkub3Blbmd3YXMuaW8iLCJzdWIiOiJibHlsMWcyMUBzb3Rvbi5hYy51ayIsImlhdCI6MTc2NTM4MjM5NywiZXhwIjoxNzY2NTkxOTk3fQ.QI90OnB-H3hyMnCcSoNH8j9sf0BHf1HYfmYG2RTZXQFCYU6adk3GddnMDHjM_5AduCNtXVGJ4ld_dYPbivw7K4Tw5KBERHHxXYJO8Ah9g_0jCJbxoXpx8LcySt7virQ9d2WJeOXr8ARCC6r-yYvc3TQRy5GN72Jl7Fnte7XKYdqu8S87WGEkjpvWuwoY4MiVUBPgj6ad8FQ3pAP4MadvqDtV_deb75sjo5pcUInPX7o82Gj_xc_Gg81oYb_hroaamP_0qbejpPx_0ZHOjLBQdCYCE5nOMj5m2TEvfF6MOef6wRo1pzkQKbRNkD-qqPG6GDoVybLIY8vaoJM3BGHSHw
+#OPENGWAS_JWT=eyJhbGciOiJSUzI1NiIsImtpZCI6ImFwaS1qd3QiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhcGkub3Blbmd3YXMuaW8iLCJhdWQiOiJhcGkub3Blbmd3YXMuaW8iLCJzdWIiOiJibHlsMWcyMUBzb3Rvbi5hYy51ayIsImlhdCI6MTc2ODI4ODA5MywiZXhwIjoxNzY5NDk3NjkzfQ.LEsghLU4QbsclW7oGtNG6j8tGq-5b781hGUdKblZygTim22GhHsP7AvhpJ90oBn87hyH7oFZKhbItuJYdV-oRy__J7OuKtP9ZOqhOUnd5zUXgGjGyJBZn3du7B_E_OosSsSQTw1Pa87LHbdGifYX627Eh8_ucs1zDs8pcD2E9QfzbN1_UdmicEcfh-4AXhvRZcie9heFezINYZ42WgO3D4MRmVGjAR8fyf8a3zx68xbUmCwsU0X-kwnzBRcaaGceC1kwBscL9nRaim6QqaFlOHAaQXD_3B5aLK56fxjTTrD0UBnKEQq1tmT3UPgOwP7P3E5AJat3I1I1GupJ1bSSLg
+#This will change i think
 
-#ieugwasr::get_opengwas_jwt() #this is to double check things are working
-#ieugwasr::user() 
+ieugwasr::get_opengwas_jwt() #this is to double check things are working
+ieugwasr::user() 
 
 gw_thresh_log10 <- 7.3
 
@@ -482,14 +485,28 @@ write.csv(
 )
 
 #Visualizing the plots
-ggplot(coloc_results_df,
-       aes(x = reorder(lead_SNPs_ld_80k, PP.H4), y = PP.H4)) + 
+plot_df <- coloc_results_df %>%
+  mutate(
+    locus = paste0("chr", CHR, ":", BP),
+    PP.H4 = as.numeric(PP.H4)
+  ) %>%
+  arrange(PP.H4)
+
+pph4_plot <-ggplot(plot_df, aes(x = reorder(locus, PP.H4), y = PP.H4)) +
   geom_point(size = 3) +
-  geom_hline(yintercept = 0.8, linetype = "dashed", colour = "red") +
+  geom_hline(yintercept = 0.8, linetype = "dashed", color = "red") +
   coord_flip() +
   labs(
-    x = "80k lead SNP (per locus)",
-    y = "Posterior probability of colocalisation (PP.H4)",
-    title = "Colocalisation of 80k vs 40k GWAS loci"
+    x = "80k locus (lead SNP window)",
+    y = "PP.H4 (shared causal variant)",
+    title = "Colocalisation posterior per 80k locus (80k vs 40k)"
   ) +
   theme_bw()
+
+ggsave(
+  filename = file.path(plot_dir, "coloc_PP.H4_per_80k_locus_posterior_probability plot.png"),
+  plot = pph4_plot,
+  width = 10,
+  height = 12,
+  dpi = 300
+)
