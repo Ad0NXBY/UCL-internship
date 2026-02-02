@@ -32,7 +32,7 @@ library(dplyr)
 library(ieugwasr)
 library(usethis)
 library(coloc)
-library(dplyr)
+
 
 #80k CODE (MAKE SURE TO REPLACE NUMBER IF YOU WANT OTHER DATASET)===================
 gwas_80k <- fread("80k_lvef_percent_000000.b38.gnorm.gz")
@@ -161,8 +161,8 @@ dev.off()
 #usethis::edit_r_environ() #use this to open to add the token
 #OPENGWAS_JWT=eyJhbGciOiJSUzI1NiIsImtpZCI6ImFwaS1qd3QiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhcGkub3Blbmd3YXMuaW8iLCJhdWQiOiJhcGkub3Blbmd3YXMuaW8iLCJzdWIiOiJibHlsMWcyMUBzb3Rvbi5hYy51ayIsImlhdCI6MTc2NTM4MjM5NywiZXhwIjoxNzY2NTkxOTk3fQ.QI90OnB-H3hyMnCcSoNH8j9sf0BHf1HYfmYG2RTZXQFCYU6adk3GddnMDHjM_5AduCNtXVGJ4ld_dYPbivw7K4Tw5KBERHHxXYJO8Ah9g_0jCJbxoXpx8LcySt7virQ9d2WJeOXr8ARCC6r-yYvc3TQRy5GN72Jl7Fnte7XKYdqu8S87WGEkjpvWuwoY4MiVUBPgj6ad8FQ3pAP4MadvqDtV_deb75sjo5pcUInPX7o82Gj_xc_Gg81oYb_hroaamP_0qbejpPx_0ZHOjLBQdCYCE5nOMj5m2TEvfF6MOef6wRo1pzkQKbRNkD-qqPG6GDoVybLIY8vaoJM3BGHSHw
 
-#ieugwasr::get_opengwas_jwt() #this is to double check things are working
-#ieugwasr::user() 
+ieugwasr::get_opengwas_jwt() #this is to double check things are working
+ieugwasr::user() 
 
 gw_thresh_log10 <- 7.3
 
@@ -514,38 +514,38 @@ ggsave(
 
 
 #Working on public dataset======================================================
-public_gwas <- fread("MRI_lvef_filtered/MRI_lvef_filtered.tsv")
+gwas_public <- fread("MRI_lvef_filtered/MRI_lvef_filtered.tsv")
 #check the output of the dataset to change the names and make sure they match with what we want
-names(public_gwas)
-head(public_gwas)
+names(gwas_public)
+head(gwas_public)
 
 #Change the names of the headers to match what we want
-setnames(public_gwas,
+setnames(gwas_public,
          old = c("SNP", "CHR", "BP", "P_LINREG", "ALLELE1", "ALLELE0", "A1FREQ", "BETA", "SE", "N"),
          new = c("SNP", "CHR", "BP", "P_raw", "effect_allele", "other_allele", "effect_allele_freq", "effect_size", "standard_error", "number_of_samples"))
 
 #Ensure that the columns are the right type
-public_gwas[, CHR := as.numeric(CHR)]
-public_gwas[, BP  := as.numeric(BP)]
-public_gwas[, SNP := as.character(SNP)]
-public_gwas[, P_raw := as.numeric(P_raw)]
-public_gwas[, effect_size := as.numeric(effect_size)]
-public_gwas[, standard_error := as.numeric(standard_error)]
-public_gwas[, effect_allele_freq := as.numeric(effect_allele_freq)]
-public_gwas[, number_of_samples := as.integer(number_of_samples)]
+gwas_public[, CHR := as.numeric(CHR)]
+gwas_public[, BP  := as.numeric(BP)]
+gwas_public[, SNP := as.character(SNP)]
+gwas_public[, P_raw := as.numeric(P_raw)]
+gwas_public[, effect_size := as.numeric(effect_size)]
+gwas_public[, standard_error := as.numeric(standard_error)]
+gwas_public[, effect_allele_freq := as.numeric(effect_allele_freq)]
+gwas_public[, number_of_samples := as.integer(number_of_samples)]
 
 #convert raw p-value to match with column "P"
-public_gwas[, P := -log10(P_raw)]
+gwas_public[, P := -log10(P_raw)]
 
 #Remove missing/invalid rows
-public_gwas <- public_gwas[
+gwas_public <- gwas_public[
   !is.na(CHR) & !is.na(BP) & !is.na(SNP) &
     !is.na(P_raw) & P_raw > 0
 ]
 
 
 #LD clumping
-clump_dat_public <- public_gwas %>%
+clump_dat_public <- gwas_public %>%
   filter(P > gw_thresh_log10) %>%
   transmute(
     rsid = SNP,
@@ -560,7 +560,7 @@ clumped_pub <- ieugwasr::ld_clump(
   pop      = "EUR"
 )
 
-lead_SNPs_ld_pub <- public_gwas %>%
+lead_SNPs_ld_pub <- gwas_public %>%
   inner_join(clumped_pub, by = c("SNP" = "rsid"))
 
 # Save LD-clumped lead SNPs
@@ -606,3 +606,259 @@ write.csv(
   row.names = FALSE
 )
 
+#Create Manhattan Plot with novel
+novel_snps <- novel_loci_for_80k$SNP
+
+novel_don_80k <- don_80k %>%
+  mutate(
+    is_novel = SNP %in% novel_snps
+  )
+
+novel_man_80k_plot <- ggplot(novel_don_80k, aes(x = BPcum, y = P)) +
+  geom_point(aes(color = as.factor(CHR)), alpha = 0.8, size = 1.3) +
+  scale_color_manual(values = rep(c("grey", "skyblue"), 22)) +
+  scale_x_continuous(label = axisdf_80k$CHR, breaks = axisdf_80k$center) +
+  scale_y_continuous(expand = c(0, 0)) +
+  geom_hline(yintercept = 7.3, linetype = "dashed", colour = "red") +
+  geom_point(data = subset(novel_don_80k, is_novel), color = "orange", size = 2.5) +
+  geom_label_repel(
+    data = subset(novel_don_80k, is_novel),
+    aes(label = SNP),
+    size = 2,
+    max.overlaps = 50
+  ) +
+  labs(
+    x = "Chromosomal position",
+    y = expression(-log[10](italic(p))),
+    title = "80k LVEF GWAS with true novel loci highlighted"
+  ) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank()
+  )
+
+ggsave(
+  filename = file.path(plot_dir, "80k_manhattan_true_novel_labeled.png"),
+  plot     = novel_man_80k_plot,
+  width    = 20,
+  height   = 10,
+  dpi      = 300
+)
+
+#Gene Prioritization============================================================
+#Create the file for MAGMA
+magma_80k <- gwas_80k[, .(
+  SNP,
+  P = P_raw,
+  N = number_of_samples
+)]
+
+fwrite(
+  magma_80k,
+  file = "80k_LVEF_magma.txt",
+  sep = "\t"
+)
+#Create PoPs compatible gene annotation file
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("biomaRt")
+library(biomaRt)
+library(data.table)
+
+mart <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
+
+gene_annot <- getBM(
+  attributes = c(
+    "ensembl_gene_id",
+    "external_gene_name",
+    "chromosome_name",
+    "transcription_start_site"
+  ),
+  mart = mart
+)
+
+gene_annot <- as.data.table(gene_annot)
+setnames(gene_annot,
+         old = c("ensembl_gene_id", "external_gene_name", "chromosome_name", "transcription_start_site"),
+         new = c("ENSGID", "GENE", "CHR", "TSS"))
+
+# Keep autosomes + X, drop weird contigs
+gene_annot <- gene_annot[CHR %in% c(as.character(1:22), "X")]
+
+# Save to a file PoPS expects (tab-delimited)
+fwrite(gene_annot,
+       file = "pops_gene_annot_hg38.tsv",
+       sep = "\t")
+
+
+#Create an Entrez to ENSG mapping
+library(biomaRt)
+library(data.table)
+
+mart <- useEnsembl(biomart="genes", dataset="hsapiens_gene_ensembl")
+
+map <- getBM(
+  attributes = c("entrezgene_id", "ensembl_gene_id"),
+  mart = mart
+)
+
+map <- as.data.table(map)
+setnames(map, c("entrezgene_id","ensembl_gene_id"), c("GENE","ENSGID"))
+map <- map[!is.na(GENE) & ENSGID != ""]
+map[, GENE := as.character(GENE)]
+
+fwrite(map, file="entrez_to_ensg.tsv", sep="\t")
+
+#Create Heatmap for PoPs gene prioritization
+top_n <- 10 #This can be set to 5
+
+#Load inputs 
+pops_lead_80k <- fread(file.path(data_dir, "80k_lead_SNPs_LD_clumped.csv"))
+pops_preds <- fread(file.path(data_dir, "80k_LVEF_PoPS.preds"))
+pops_gene_annot <- fread(file.path(data_dir, "pops_gene_annot_hg38.tsv"))
+
+#Making sure ENSG and score column are detected
+ensg_col <- names(pops_preds)[grepl("ENSG", names(pops_preds), ignore.case = TRUE)][1]
+if (is.na(ensg_col)) ensg_col <- names(pops_preds)[1]
+
+score_col <- names(pops_preds)[grepl("pred|score", names(pops_preds), ignore.case = TRUE)][1]
+if (is.na(score_col)) score_col <- names(pops_preds)[2]
+
+pops_preds <- pops_preds %>%
+  rename(ENSGID = all_of(ensg_col),
+         PoPS_score = all_of(score_col)) %>%
+  mutate(
+    ENSGID = as.character(ENSGID),
+    PoPS_score = as.numeric(PoPS_score)
+  )
+
+#Gene Annotation
+pops_gene_annot <- pops_gene_annot %>%
+  mutate(
+    ENSGID = as.character(ENSGID),
+    CHR = as.character(CHR),
+    CHR = gsub("^chr", "", CHR),
+    CHR = ifelse(CHR %in% as.character(1:22), CHR, NA),
+    CHR = as.integer(CHR),
+    TSS = as.integer(TSS),
+    GENE = ifelse(is.na(GENE) | GENE == "", ENSGID, GENE)
+  ) %>%
+  filter(!is.na(CHR), !is.na(TSS))
+
+#Join PoPs scores to gene positions
+pops_annot <- pops_preds %>%
+  inner_join(pops_gene_annot, by = "ENSGID") %>%
+  filter(!is.na(PoPS_score))
+
+#Map genes to each locus and keep top N
+top_genes_per_locus <- pops_lead_80k %>%
+  transmute(
+    locus_id  = SNP,
+    locus     = paste0("chr", CHR, ":", BP),
+    locus_CHR = as.integer(CHR),
+    locus_BP  = as.integer(BP)
+  ) %>%
+  distinct() %>%
+  rowwise() %>%
+  mutate(
+    genes = list(
+      pops_annot %>%
+        filter(CHR == locus_CHR, abs(TSS - locus_BP) <= window_bp) %>%
+        arrange(desc(PoPS_score)) %>%
+        slice_head(n = top_n)
+    )
+  ) %>%
+  ungroup() %>%
+  tidyr::unnest(genes) %>%
+  select(
+    locus_id, locus, locus_CHR, locus_BP,
+    ENSGID, GENE, CHR, TSS, PoPS_score
+  ) %>%
+  arrange(locus, desc(PoPS_score))
+
+
+write.csv(
+  top_genes_per_locus,
+  file = file.path(data_dir, "80k_PoPS_top_genes_per_locus.csv"),
+  row.names = FALSE
+)
+
+# Save top1 per locus
+top1 <- top_genes_per_locus %>%
+  group_by(locus) %>%
+  slice_max(PoPS_score, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+write.csv(
+  top1,
+  file = file.path(data_dir, "80k_PoPS_top1_gene_per_locus.csv"),
+  row.names = FALSE
+)
+
+#Heatmap
+heat_df <- top_genes_per_locus %>%
+  mutate(gene_label = GENE) %>%
+  select(locus, gene_label, PoPS_score)
+
+pops_heatmap <- ggplot(heat_df, aes(x = gene_label, y = locus, fill = PoPS_score)) +
+  geom_tile() +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1),
+    panel.grid = element_blank()
+  ) +
+  labs(
+    x = "Prioritised genes (top per locus)",
+    y = "80k LVEF loci (lead SNP position; ±500 kb window)",
+    title = "PoPS gene prioritisation across 80k LVEF loci"
+  )
+
+ggsave(
+  filename = file.path(plot_dir, "PoPS_heatmap_80k_top_genes_per_locus.png"),
+  plot = pops_heatmap,
+  width = 14,
+  height = 10,
+  dpi = 300
+)
+
+#Novel loci only heatmap/table 
+  novel <- fread(file.path(data_dir, "80k_novel_LVEF_loci.csv")) %>%
+  mutate(SNP = as.character(SNP))
+
+novel_top_genes <- top_genes_per_locus %>%
+  filter(locus_id %in% novel$SNP)
+
+write.csv(
+  novel_top_genes,
+  file = file.path(data_dir, "80k_PoPS_top_genes_per_novel_locus.csv"),
+  row.names = FALSE
+)
+
+novel_heat_df <- novel_top_genes %>%
+  mutate(gene_label = GENE) %>%
+  select(locus, gene_label, PoPS_score)
+
+novel_heatmap <- ggplot(novel_heat_df, aes(x = gene_label, y = locus, fill = PoPS_score)) +
+  geom_tile() +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1),
+    panel.grid = element_blank()
+  ) +
+  labs(
+    x = "Prioritised genes (top per locus)",
+    y = "Novel 80k loci (±500 kb window)",
+    title = "PoPS prioritisation for novel 80k LVEF loci"
+  )
+
+ggsave(
+  filename = file.path(plot_dir, "PoPS_heatmap_80k_novel_loci.png"),
+  plot = novel_heatmap,
+  width = 14,
+  height = 10,
+  dpi = 300
+)
