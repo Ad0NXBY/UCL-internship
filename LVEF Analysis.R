@@ -713,12 +713,12 @@ map[, GENE := as.character(GENE)]
 
 fwrite(map, file="entrez_to_ensg.tsv", sep="\t")
 
-#Create Heatmap for PoPs gene prioritization
+#PoPs gene prioritization
 top_n <- 10 #This can be set to 5
 
 #Load inputs 
 pops_lead_80k <- fread(file.path(data_dir, "80k_lead_SNPs_LD_clumped.csv"))
-pops_preds <- fread(file.path(data_dir, "80k_LVEF_PoPS.preds"))
+pops_preds <- fread(file.path(data_dir, "Nikhil_lvefb37_pops.preds"))
 pops_gene_annot <- fread(file.path(data_dir, "pops_gene_annot_hg38.tsv"))
 
 #Making sure ENSG and score column are detected
@@ -799,15 +799,15 @@ write.csv(
   row.names = FALSE
 )
 
-##Gene Prioritization Heatmap
+##Gene Prioritization Heatmap (Change the top_n here if you want to get more/less genes)
 library(dplyr)
 library(ggplot2)
 library(ggtext)
 
 window_bp <- 500000
-top_n <- 4
+top_n <- 10
 
-get_top_genes_one_locus <- function(locus_chr, locus_bp, locus_label, top_n = 4, window_bp = 500000) {
+get_top_genes_one_locus <- function(locus_chr, locus_bp, locus_label, top_n = 10, window_bp = 500000) {
   
   pops_gene_annot %>%
     mutate(CHR = as.integer(CHR),
@@ -909,7 +909,7 @@ p_big <- ggplot(plot_df, aes(x = gene_rank, y = 1, fill = PoPS_scaled_01)) +
 p_big
 
 ggsave(
-  filename = file.path(plot_dir, "PoPS_per_locus_top_genes.png"),
+  filename = file.path(plot_dir, "PoPS_per_locus_top_genes_2.png"),
   plot = p_big,
   width = 40,   # increase width
   height = 20,   # increase height
@@ -917,7 +917,7 @@ ggsave(
 )
 
 ggsave(
-  filename = file.path(plot_dir, "PoPS_per_locus_top_genes.pdf"),
+  filename = file.path(plot_dir, "PoPS_per_locus_top_genes_2.pdf"),
   plot = p_big,
   width = 40,   # increase width
   height = 20   # increase height
@@ -950,3 +950,14 @@ write.csv(
   file = file.path(data_dir, "80k_loci_summary_with_PoPS_gene.csv"),
   row.names = FALSE
 )
+
+
+#Finding nearest gene to each lead loci=========================================
+install.packages(
+  "https://cran.r-project.org/src/contrib/Archive/humarray/humarray_1.2.tar.gz",
+  repos = NULL,
+  type = "source"
+)
+install.packages("remotes")
+remotes::install_github("cran/humarray")
+library(humarray)
