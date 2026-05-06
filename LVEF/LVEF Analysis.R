@@ -1,12 +1,12 @@
 #Directory for plots============================================================
-plot_dir <- "b37 plots"
+plot_dir <- "plots"
 
 # Create it if it doesn't exist
 if (!dir.exists(plot_dir)) {
   dir.create(plot_dir, recursive = TRUE)
 }
 
-data_dir <- "b37 data"
+data_dir <- "data"
 
 # Create it if it doesn't exist
 if (!dir.exists(data_dir)) {
@@ -35,7 +35,7 @@ library(coloc)
 library(patchwork)
 
 #80k CODE (MAKE SURE TO REPLACE NUMBER IF YOU WANT OTHER DATASET)===================
-gwas_80k <- fread("b37 data/80k_lvef_percent_000000.b37.gnorm.gz")
+gwas_80k <- fread("80k_lvef_percent_000000.b38.gnorm.gz")
 
 #Rename the columns to match the format required by qqman
 setnames(gwas_80k,
@@ -176,21 +176,18 @@ clump_dat_80k <- gwas_80k %>%
 clumped_80k <- ieugwasr::ld_clump(
   dat      = clump_dat_80k,
   clump_kb = 10000,
-  clump_r2 = 0.001,
+  clump_r2 = 0.1,
   clump_p  = 5e-8,
   pop      = "EUR"
 )
 
 lead_SNPs_ld_80k <- gwas_80k %>%
-  dplyr::inner_join(clumped_80k, by = c("SNP" = "rsid")) %>%
-  dplyr::arrange(CHR, BP) %>%
-  dplyr::mutate(locus_label = paste0("Locus ", dplyr::row_number()))
-
+  dplyr::inner_join(clumped_80k, by = c("SNP" = "rsid"))
 
 # Save LD-clumped lead SNPs
 write.table(
   lead_SNPs_ld_80k,
-  file = file.path(data_dir, "80k_lead_SNPs_LD_clumped.tsv"),
+  file = file.path(data_dir, "80k_lead_SNPs_LD_clumped_r2_0.1.tsv"),
   sep = "\t",
   quote = FALSE,
   row.names = FALSE
@@ -198,7 +195,7 @@ write.table(
 
 write.csv(
   lead_SNPs_ld_80k,
-  file = file.path(data_dir, "80k_lead_SNPs_LD_clumped.csv"),
+  file = file.path(data_dir, "80k_lead_SNPs_LD_clumped_r2_0.1.csv"),
   row.names = FALSE
 )
 
@@ -207,14 +204,12 @@ write.csv(
 
 
 #40k CODE (MAKE SURE TO REPLACE NUMBER IF YOU WANT OTHER DATASET)===================
-gwas_40k <- fread("b37 data/LVEF.regenie.gz")
+gwas_40k <- fread("40k_lvef_00000000.b38.gnorm.gz")
 
 #Rename the columns to match the format required by qqman
 setnames(gwas_40k,
-         old = c("chr","pos_b37","var_id","a1","a2",
-                 "a1_freq","a1_beta","se","minlog10p"),
-         new = c("CHR","BP","SNP","effect_allele","other_allele",
-                 "effect_allele_freq","effect_size","standard_error","P"))
+         old = c("chr_name","start_pos","var_id","pvalue"),
+         new = c("CHR", "BP", "SNP", "P"))
 
 #Ensure that the columns are the right type
 gwas_40k[, CHR := as.numeric(CHR)]
@@ -224,7 +219,7 @@ gwas_40k[, SNP := as.character(SNP)]
 
 #Remove rows with missing/invalid values
 gwas_40k <- gwas_40k[!is.na(CHR) & !is.na(BP) & !is.na(P) & P > 0]
-gwas_40k[, number_of_samples := 39039L]
+
 
 #Send it towards the plot directory
 png(
@@ -350,7 +345,7 @@ clump_dat_40k <- gwas_40k %>%
 clumped_40k <- ieugwasr::ld_clump(
   dat      = clump_dat_40k,
   clump_kb = 10000,
-  clump_r2 = 0.001,
+  clump_r2 = 0.1,
   clump_p  = 5e-8,
   pop      = "EUR"
 )
@@ -361,7 +356,7 @@ lead_SNPs_ld_40k <- gwas_40k %>%
 # Save LD-clumped lead SNPs
 write.table(
   lead_SNPs_ld_40k,
-  file = file.path(data_dir, "40k_lead_SNPs_LD_clumped.tsv"),
+  file = file.path(data_dir, "40k_lead_SNPs_LD_clumped_r2_0.1.tsv"),
   sep = "\t",
   quote = FALSE,
   row.names = FALSE
@@ -369,7 +364,7 @@ write.table(
 
 write.csv(
   lead_SNPs_ld_40k,
-  file = file.path(data_dir, "40k_lead_SNPs_LD_clumped.csv"),
+  file = file.path(data_dir, "40k_lead_SNPs_LD_clumped_r2_0.1.csv"),
   row.names = FALSE
 )
 
@@ -485,7 +480,7 @@ coloc_results_df <- dplyr::bind_rows(coloc_results)
 
 write.csv(
   coloc_results_df,
-  file = file.path(data_dir, "coloc_80k_vs_40k_per_80k_locus.csv"),
+  file = file.path(data_dir, "coloc_80k_vs_40k_per_80k_locus_r2_0.1.csv"),
   row.names = FALSE
 )
 
@@ -509,7 +504,7 @@ pph4_plot <-ggplot(plot_df, aes(x = reorder(locus, PP.H4), y = PP.H4)) +
   theme_bw()
 
 ggsave(
-  filename = file.path(plot_dir, "coloc_PP.H4_per_80k_locus_posterior_probability plot.png"),
+  filename = file.path(plot_dir, "coloc_PP.H4_per_80k_locus_posterior_probability plot_r2_0.1.png"),
   plot = pph4_plot,
   width = 10,
   height = 12,
@@ -560,7 +555,7 @@ clump_dat_public <- gwas_public %>%
 clumped_pub <- ieugwasr::ld_clump(
   dat      = clump_dat_public,
   clump_kb = 10000,
-  clump_r2 = 0.001,
+  clump_r2 = 0.1,
   clump_p  = 5e-8,
   pop      = "EUR"
 )
@@ -571,7 +566,7 @@ lead_SNPs_ld_pub <- gwas_public %>%
 # Save LD-clumped lead SNPs
 write.table(
   lead_SNPs_ld_pub,
-  file = file.path(data_dir, "published_LVEF_lead_SNPs_LD_clumped.tsv"),
+  file = file.path(data_dir, "published_LVEF_lead_SNPs_LD_clumped_r2_0.1.tsv"),
   sep = "\t",
   quote = FALSE,
   row.names = FALSE
@@ -579,7 +574,7 @@ write.table(
 
 write.csv(
   lead_SNPs_ld_pub,
-  file = file.path(data_dir, "published_LVEF_lead_SNPs_LD_clumped.csv"),
+  file = file.path(data_dir, "published_LVEF_lead_SNPs_LD_clumped_r2_0.1.csv"),
   row.names = FALSE
 )
 
@@ -607,7 +602,7 @@ novel_loci_80k_full <- novel_loci_for_80k %>%
 
 write.csv(
   novel_loci_80k_full,
-  file = file.path(data_dir, "80k_novel_LVEF_loci.csv"),
+  file = file.path(data_dir, "80k_novel_LVEF_loci_r2_0.1.csv"),
   row.names = FALSE
 )
 
@@ -646,7 +641,7 @@ novel_man_80k_plot <- ggplot(novel_don_80k, aes(x = BPcum, y = P)) +
   )
 
 ggsave(
-  filename = file.path(plot_dir, "80k_manhattan_true_novel_labeled.png"),
+  filename = file.path(plot_dir, "80k_manhattan_true_novel_labeled_r2_0.1.png"),
   plot     = novel_man_80k_plot,
   width    = 20,
   height   = 10,
@@ -690,7 +685,7 @@ BiocManager::install("biomaRt")
 library(biomaRt)
 library(data.table)
 
-mart <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl", GRCh = 37)
+mart <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
 
 gene_annot <- getBM(
   attributes = c(
@@ -712,7 +707,7 @@ gene_annot <- gene_annot[CHR %in% c(as.character(1:22), "X")]
 
 # Save to a file PoPS expects (tab-delimited)
 fwrite(gene_annot,
-       file = "pops_gene_annot_hg37.tsv",
+       file = "pops_gene_annot_hg38.tsv",
        sep = "\t")
 
 
@@ -734,40 +729,13 @@ map[, GENE := as.character(GENE)]
 
 fwrite(map, file="entrez_to_ensg.tsv", sep="\t")
 
-#Create gene symbol to ENSG mapping
-library(biomaRt)
-library(data.table)
-
-mart <- useEnsembl(
-  biomart = "genes",
-  dataset = "hsapiens_gene_ensembl",
-  GRCh = 37
-)
-
-gene_map <- getBM(
-  attributes = c(
-    "external_gene_name",
-    "ensembl_gene_id"
-  ),
-  mart = mart
-)
-
-setDT(gene_map)
-setnames(gene_map,
-         c("external_gene_name","ensembl_gene_id"),
-         c("GENE","ENSGID"))
-
-fwrite(gene_map,
-       "gene_symbol_to_ENSG_b37.tsv",
-       sep="\t")
-
 #PoPs gene prioritization
-top_n <- 10 #This can be set to 5
+top_n <- 4 #This can be set to 5
 
 #Load inputs 
-pops_lead_80k <- fread(file.path(data_dir, "80k_lead_SNPs_LD_clumped.csv"))
-pops_preds <- fread(file.path(data_dir, "80k_b37_PoPS.preds"))
-pops_gene_annot <- fread( "pops_gene_annot_hg37.tsv")
+pops_lead_80k <- fread(file.path(data_dir, "80k_lead_SNPs_LD_clumped_r2_0.1.csv"))
+pops_preds <- fread(file.path(data_dir, "80k", "80k_LVEF_PoPS.preds"))
+pops_gene_annot <- fread(file.path(data_dir, "pops_gene_annot_hg38.tsv"))
 
 #Making sure ENSG and score column are detected
 ensg_col <- names(pops_preds)[grepl("ENSG", names(pops_preds), ignore.case = TRUE)][1]
@@ -831,7 +799,7 @@ top_genes_per_locus <- pops_lead_80k %>%
 
 write.csv(
   top_genes_per_locus,
-  file = file.path(data_dir, "80k_PoPS_top_genes_per_locus.csv"),
+  file = file.path(data_dir, "80k_PoPS_top_genes_per_locus_r2_0.1.csv"),
   row.names = FALSE
 )
 
@@ -843,7 +811,7 @@ top1 <- top_genes_per_locus %>%
 
 write.csv(
   top1,
-  file = file.path(data_dir, "80k_PoPS_top1_gene_per_locus.csv"),
+  file = file.path(data_dir, "80k_PoPS_top1_gene_per_locus_r2_0.1.csv"),
   row.names = FALSE
 )
 
@@ -855,7 +823,7 @@ library(ggtext)
 window_bp <- 500000
 top_n <- 10
 
-get_top_genes_one_locus <- function(locus_chr, locus_bp, locus_label, top_n = 10, window_bp = 500000) {
+get_top_genes_one_locus <- function(locus_chr, locus_bp, locus_label, top_n = 4, window_bp = 500000) {
   
   pops_gene_annot %>%
     mutate(CHR = as.integer(CHR),
@@ -958,7 +926,7 @@ p_big <- ggplot(plot_df, aes(x = gene_rank, y = 1, fill = PoPS_scaled_01)) +
 p_big
 
 ggsave(
-  filename = file.path(plot_dir, "80k_PoPS_per_locus_top_genes_2.png"),
+  filename = file.path(plot_dir, "80k_PoPS_per_locus_top_genes_2_r2_0.1.png"),
   plot = p_big,
   width = 40,   # increase width
   height = 20,   # increase height
@@ -966,7 +934,7 @@ ggsave(
 )
 
 ggsave(
-  filename = file.path(plot_dir, "80k_PoPS_per_locus_top_genes_2.pdf"),
+  filename = file.path(plot_dir, "80k_PoPS_per_locus_top_genes_2_r2_0.1.pdf"),
   plot = p_big,
   width = 40,   # increase width
   height = 20   # increase height
@@ -996,7 +964,7 @@ locus_table_80k <- pops_lead_80k %>%
 # Save
 write.csv(
   locus_table_80k,
-  file = file.path(data_dir, "80k_loci_summary_with_PoPS_gene.csv"),
+  file = file.path(data_dir, "80k_loci_summary_with_PoPS_gene_r2_0.1.csv"),
   row.names = FALSE
 )
 
@@ -1045,7 +1013,7 @@ comparison <- nearest_tbl %>%
 
 write.csv(
   comparison,
-  file = file.path(data_dir, "80k_nearest_gene_vs_PoPS_top_gene.csv"),
+  file = file.path(data_dir, "80k_nearest_gene_vs_PoPS_top_gene_r2_0.1.csv"),
   row.names = FALSE
 )
 
@@ -1070,7 +1038,7 @@ locus_table_80k <- pops_lead_80k %>%
 
 write.csv(
   locus_table_80k,
-  file = file.path(data_dir, "80k_loci_summary_table_with_PoPS_and_nearest_gene.csv"),
+  file = file.path(data_dir, "80k_loci_summary_table_with_PoPS_and_nearest_gene_r2_0.1.csv"),
   row.names = FALSE
 )
 
@@ -1117,34 +1085,30 @@ scoring_df <- scoring_df %>%
     pops_top_gene_score = ifelse(is_pops_top_gene, 1L, 0L)
   )
 
+**** EDIT************
 scoring_df <- scoring_df %>%
-  filter(!is.na(magma_scaled_locus_01)) %>%
   mutate(
-    combined_score = pops_scaled_locus_01 + magma_scaled_locus_01 + nearest_gene_score
+    final_nearest_gene_score = ifelse(
+      is_nearest_gene & is_pops_top_gene,
+      1L, 0L
+    )
   )
 
+
+scoring_df <- scoring_df %>%
+  mutate(
+    combined_score = pops_scaled_locus_01 + magma_scaled_locus_01 + final_nearest_gene_score
+  )
 
 final_gene_scoring_table <- scoring_df %>%
   select(ENSGID, GENE, CHR, locus_label,
          pops_scaled_locus_01, magma_scaled_locus_01, 
-         nearest_gene_score, combined_score) 
-
-locus_info <- pops_lead_80k %>%
-  transmute(
-    locus_label = paste0("Locus ", row_number()),
-    BP = as.integer(BP),
-    rsid = SNP,
-    p_value = P_raw,
-    se = standard_error
-  )
-final_gene_scoring_table <- final_gene_scoring_table %>%
-  left_join(locus_info, by = "locus_label")
-
+         final_nearest_gene_score, combined_score) 
 
 
 write.csv(
   final_gene_scoring_table,
-  file = file.path(data_dir, "80k_gene_scoring_table.csv"),
+  file = file.path(data_dir, "80k_gene_scoring_table_r2_0.1.csv"),
   row.names = FALSE
 )
 #Heatmap
@@ -1164,14 +1128,14 @@ plot_df <- final_gene_scoring_table %>%
   select(locus_label, GENE,
          pops_scaled_locus_01,
          magma_scaled_locus_01,
-         nearest_gene_score,
+         final_nearest_gene_score,
          combined_score) %>%
   mutate(
     locus_label = as.integer(locus_label),
     GENE = as.character(GENE)
   ) %>%
   pivot_longer(
-    cols = c(pops_scaled_locus_01, magma_scaled_locus_01, nearest_gene_score),
+    cols = c(pops_scaled_locus_01, magma_scaled_locus_01, final_nearest_gene_score),
     names_to = "metric",
     values_to = "score"
   ) %>%
@@ -1179,7 +1143,7 @@ plot_df <- final_gene_scoring_table %>%
     metric = recode(metric,
                     pops_scaled_locus_01     = "PoPS",
                     magma_scaled_locus_01    = "MAGMA",
-                    nearest_gene_score = "Nearest gene"
+                    final_nearest_gene_score = "Nearest gene"
     ),
     metric = factor(metric, levels = c("MAGMA", "Nearest gene", "PoPS"))
   )
@@ -1188,9 +1152,8 @@ plot_df <- final_gene_scoring_table %>%
 make_one_locus_plot <- function(df_locus) {
   # order genes within this locus (top = highest combined_score)
   gene_levels <- df_locus %>%
-    group_by(GENE) %>%
-    summarise(combined_score = max(combined_score, na.rm = TRUE), .groups = "drop") %>%
-    arrange(combined_score) %>%
+    distinct(GENE, combined_score) %>%
+    arrange(combined_score) %>%              # low->high
     pull(GENE)
   
   df_locus <- df_locus %>%
@@ -1234,7 +1197,7 @@ big_plot <- big_plot + plot_layout(guides = "collect") &
 
 # Save
 ggsave(
-  filename = file.path(plot_dir, "80k_gene_scoring_heatmaps_50panel_patchwork.png"),
+  filename = file.path(plot_dir, "80k_gene_scoring_heatmaps_50panel_patchwork_r2_0.1.png"),
   plot = big_plot,
   width = 28, height = 18, dpi = 300
 )
